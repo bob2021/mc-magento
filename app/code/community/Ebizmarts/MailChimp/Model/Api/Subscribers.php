@@ -102,6 +102,24 @@ class Ebizmarts_MailChimp_Model_Api_subscribers
         } catch(Mailchimp_Error $e) {
             Mage::helper('mailchimp')->logError($e->getFriendlyMessage());
             Mage::getSingleton('adminhtml/session')->addError($e->getFriendlyMessage());
+
+            if ($newStatus === 'subscribed' && strstr($e->getMailchimpDetails(), 'is in a compliance state')) {
+                try {
+                    $api->lists->members->update($listId, $md5HashEmail, null, 'pending');
+                    $subscriber->setSubscriberStatus(Mage_Newsletter_Model_Subscriber::STATUS_UNCONFIRMED);
+
+                    if (!Mage::app()->getStore()->isAdmin()) {
+                        Mage::getSingleton('customer/session')->addSuccess(
+                            Mage::helper('mailchimp')->__(
+                                'We have sent you a confirmation email, please click the link in the email to confirm that you wish to receive our newsletter.'
+                            )
+                        );
+                    }
+                } catch (Exception $e) {
+                    Mage::helper('mailchimp')->logError($e->getFriendlyMessage());
+                    Mage::getSingleton('adminhtml/session')->addError($e->getFriendlyMessage());
+                }
+            }
         } catch (Exception $e) {
             Mage::helper('mailchimp')->logError($e->getMessage());
         }
